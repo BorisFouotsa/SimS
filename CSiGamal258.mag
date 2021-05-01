@@ -1,0 +1,760 @@
+/////////////////////////////////////////////////////////////////////////////////
+//
+// This  code was obtained by modifying that of SiGamal available online at :
+// http://tomoriya.work/code.html
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+// Some functions in this file are based on those in SIDH Library.
+//
+// SIDH Library: https://www.microsoft.com/en-us/research/project/sidh-library/
+// SIDH Library
+//
+// Copyright (c) Microsoft Corporation
+// All rights reserved. 
+//
+// MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
+// associated documentation files (the ""Software""), to deal in the Software without restriction, 
+// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, 
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial 
+// portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT 
+// LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+///////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+//Binary expansion//
+
+two_expansion:=function(n)
+     LIST:=[];
+     while n ne 0 do
+          m:=n mod 2;
+          n:=(n - m) div 2;
+          LIST:=Append(LIST,m);
+     end while;
+     return LIST;
+end function;
+
+
+//Compute D^s//
+
+ppower:=function(D,s,counter)
+
+     LIST:=two_expansion(s);
+     Ds:=D;
+     for i:=#LIST-1 to 1 by -1 do
+          if LIST[i] eq 0 then
+               Ds:=Ds^2;
+               counter[2]:=counter[2]+1;
+          else
+               Ds:=Ds^2; Ds:=Ds*D;
+               counter[1]:=counter[1]+1; counter[2]:=counter[2]+1;
+          end if;
+     end for;
+
+     return Ds,counter;
+end function;
+
+
+//Doubling in Montgomery curves//
+
+Montgomery_double:=function(X,Z,A24,C24,counter)
+    t0 := X-Z;
+    t1 := X+Z;
+    t0 := t0^2;
+    t1 := t1^2;
+    Z2 := C24*t0;
+    X2 := Z2*t1;
+    t1 := t1-t0;
+    t0 := A24*t1;
+    Z2 := Z2+t0;
+    Z2:= Z2*t1;
+    counter[1]:=counter[1]+4; counter[2]:=counter[2]+2; counter[3]:=counter[3]+4;
+    return X2,Z2,counter;   // Total: 4M+2S+4a
+end function;
+
+Montgomery_double_Z_1:=function(X,A24,C24,counter)
+    t0 := X-1;
+    X4 := 2*X;
+    X4 := 2*X4;
+    t0 := t0^2;
+    t1 := t0+X4;
+    Z2 := C24*t0;
+    X2 := Z2*t1;
+    t0 := A24*X4;
+    Z2 := Z2+t0;
+    Z2:= Z2*X4;
+    counter[1]:=counter[1]+4; counter[2]:=counter[2]+1; counter[3]:=counter[3]+5;
+    return X2,Z2,counter;   // Total: 4M+1S+5a
+end function;
+
+
+//Addition in Monntgomery curves//
+
+Montgomery_add:=function(X1,Z1,X2,Z2,X0,Z0,A,C,counter)
+    V0:=X1+Z1;
+    V1:=X2-Z2;
+    V1:=V1*V0;
+    V0:=X1-Z1;
+    V2:=X2+Z2;
+    V2:=V2*V0;
+    V3:=V1+V2;
+    V3:=V3^2;
+    V4:=V1-V2;
+    V4:=V4^2;
+    X_plus:=Z0*V3;
+    Z_plus:=X0*V4;
+    counter[1]:=counter[1]+4; counter[2]:=counter[2]+2; counter[3]:=counter[3]+6;
+    return X_plus,Z_plus,counter;               // Total: 4M+2S+6a
+end function;
+
+
+Montgomery_add_double:=function(X1,Z1,X2,Z2,X0,Z0,A24,C24,counter)
+    V0:=X1+Z1;
+    t1:=V0^2;
+    V1:=X2-Z2;
+    V1:=V1*V0;
+    V0:=X1-Z1;
+    t0:=V0^2;
+    V2:=X2+Z2;
+    V2:=V2*V0;
+    V3:=V1+V2;
+    V3:=V3^2;
+    V4:=V1-V2;
+    V4:=V4^2;
+    X3:=Z0*V3;
+    Z3:=X0*V4;
+    Z4:=C24*t0;
+    X4:=Z4*t1;
+    t1:=t1-t0;
+    t0:=A24*t1;
+    Z4:=Z4+t0;
+    Z4:=Z4*t1;
+    counter[1]:=counter[1]+8; counter[2]:=counter[2]+4; counter[3]:=counter[3]+8;
+    return X4,Z4,X3,Z3,counter;      // Total : 8M+4S+8a
+end function;
+
+
+Montgomery_add_double_Z_1:=function(X1,Z1,X2,Z2,X0,A24,C24,counter)
+    V0:=X1+Z1;
+    t1:=V0^2;
+    V1:=X2-Z2;
+    V1:=V1*V0;
+    V0:=X1-Z1;
+    t0:=V0^2;
+    V2:=X2+Z2;
+    V2:=V2*V0;
+    V3:=V1+V2;
+    V3:=V3^2;
+    V4:=V1-V2;
+    V4:=V4^2;
+    X3:=V3;
+    Z3:=X0*V4;
+    Z4:=C24*t0;
+    X4:=Z4*t1;
+    t1:=t1-t0;
+    t0:=A24*t1;
+    Z4:=Z4+t0;
+    Z4:=Z4*t1;
+    counter[1]:=counter[1]+7; counter[2]:=counter[2]+4; counter[3]:=counter[3]+8;
+    return X4,Z4,X3,Z3,counter;      // Total : 7M+4S+8a
+end function;
+
+
+//Montgomery ladder : W1=w(n*P),W2=w((n+1)P)//
+
+Montgomery_ladder:=function(X,Z,n,A24,C24,counter)
+     X1:=1;
+     Z1:=0;
+     X2:=X;
+     Z2:=Z;
+     
+     LIST:=two_expansion(n);
+     for i:=#LIST to 1 by -1 do
+          if LIST[i] eq 0 then
+               X1,Z1,X2,Z2,counter:=Montgomery_add_double(X1,Z1,X2,Z2,X,Z,A24,C24,counter);
+          else
+               X2,Z2,X1,Z1,counter:=Montgomery_add_double(X2,Z2,X1,Z1,X,Z,A24,C24,counter);
+          end if;
+     end for;
+     return X1,Z1,counter;
+end function;
+
+Montgomery_ladder_Z_1:=function(X,n,A24,C24,counter)
+     X1:=X;
+     Z1:=1;
+     X2,Z2,counter:=Montgomery_double_Z_1(X,A24,C24,counter);
+     
+     //LIST:=two_expansion(n);
+     LIST:=IntegerToSequence(n,2);
+     LIST:=Reverse(LIST);
+     for i:=2 to #LIST do
+          if LIST[i] eq 0 then
+               X1,Z1,X2,Z2,counter:=Montgomery_add_double_Z_1(X1,Z1,X2,Z2,X,A24,C24,counter);
+          else
+               X2,Z2,X1,Z1,counter:=Montgomery_add_double_Z_1(X2,Z2,X1,Z1,X,A24,C24,counter);
+          end if;
+     end for;
+     return X1,Z1,counter;
+end function;
+
+
+//Pohlig-Hellman algorithm//
+
+Pohlig_Hellman:=function(r,P1,P2,Q1,Q2,A,C,count)
+	A24:=A+2*C;
+	C24:=4*C;
+	count[1]:=count[1]+2;count[3]:=count[3]+1;
+	PP1:=P1;
+	PP2:=P2;
+	QQ1:=Q1;
+	QQ2:=Q2;
+	m:=1;
+        P_List:=[];
+	Q_List:=[];
+        P_List[1]:=[P1,P2];
+        Q_List[1]:=[Q1,Q2];
+	for l:=1 to r-2 do
+		PP1,PP2,count:=Montgomery_double(P_List[l][1],P_List[l][2],A24,C24,count);
+		P_List[l+1]:=[PP1,PP2];
+		QQ1,QQ2,count:=Montgomery_double(Q_List[l][1],Q_List[l][2],A24,C24,count);
+		Q_List[l+1]:=[QQ1,QQ2];
+	end for;
+
+	for l:=2 to r-1 do
+		QQ1:=Q_List[r-l][1];
+		QQ2:=Q_List[r-l][2];
+		QQ1,QQ2,count:=Montgomery_ladder(QQ1,QQ2,m,A24,C24,count);
+		PP1:=P_List[r-l][1];
+		PP2:=P_List[r-l][2];
+		if PP1*QQ2 ne QQ1*PP2 then
+			m:=m+2^l;
+		end if;
+	end for;
+
+	return m,count;
+end function;
+
+
+//computing points in the kernel//
+
+KernelPoints:=function(X1,Z1,A24,C24,d,counter)
+
+	KernelList:=[];
+	KernelList[1]:=[X1,Z1];
+
+	if (d eq 2) then
+
+		X2,Z2,counter:=Montgomery_double(X1,Z1,A24,C24,counter); 
+		KernelList[2]:=[X2,Z2];
+
+	elif (d gt 2) then
+
+		X2,Z2,counter:=Montgomery_double(X1,Z1,A24,C24,counter);
+		KernelList[2]:=[X2,Z2];
+		x1:=X1; z1:=Z1; x2:=X2; z2:=Z2;
+
+		for i:=3 to d do
+
+			x3,z3,counter:=Montgomery_add(x2,z2,X1,Z1,x1,z1,A24,C24,counter);
+			KernelList[i]:=[x3,z3];
+			x1:=x2; z1:=z2;
+			x2:=x3; z2:=z3;
+
+		end for;
+	end if;
+
+
+
+	return KernelList,counter;
+end function;
+
+OddIsogeny_point_Montgomery:=function(KernelList,X,Z,ell,A,C2,XP,ZP,counter)
+
+	phi_X:=1;
+        phi_Z:=1;
+	phi_XP:=1;
+        phi_ZP:=1;
+	phi_a:=1;
+        phi_d:=1;
+        t1:=X+Z;
+        t2:=X-Z;
+	tP1:=XP+ZP;
+	tP2:=XP-ZP;
+        a:=A+C2;
+        d:=A-C2;
+        s:=#KernelList;
+
+        for i:=1 to s do
+             t3:=KernelList[i][2]+KernelList[i][1];
+             t4:=KernelList[i][1]-KernelList[i][2];
+             F:=t2*t3;
+             G:=t1*t4;
+             FFG:=F+G;
+             FGG:=F-G;
+             phi_X:=phi_X*FFG;
+             phi_Z:=phi_Z*FGG;
+             FP:=tP2*t3;
+             GP:=tP1*t4;
+             FFGP:=FP+GP;
+             FGGP:=FP-GP;
+             phi_XP:=phi_XP*FFGP;
+             phi_ZP:=phi_ZP*FGGP;
+             phi_a:=phi_a*t3;
+             phi_d:=phi_d*t4;
+        end for;
+
+
+        phi_X:=(phi_X)^2;
+        phi_X:=phi_X*X;
+        phi_Z:=(phi_Z)^2;
+        phi_Z:=phi_Z*Z;
+
+        phi_XP:=(phi_XP)^2;
+        phi_XP:=phi_XP*XP;
+        phi_ZP:=(phi_ZP)^2;
+        phi_ZP:=phi_ZP*ZP;
+
+        phi_a:=phi_a^2;
+        phi_a:=phi_a^2;
+        as,counter:=ppower(a,s,counter);
+        phi_a:=phi_a*as;
+        phi_a:=phi_a^2;
+        phi_a:=phi_a*a;
+        phi_d:=phi_d^2;
+        phi_d:=phi_d^2;
+        ds,counter:=ppower(d,s,counter);
+        phi_d:=phi_d*ds;
+        phi_d:=phi_d^2;
+        phi_d:=phi_d*d;
+
+        phi_A:=phi_a+phi_d;
+        phi_A:=2*phi_A;
+        phi_C:=phi_a-phi_d;
+
+	counter[1]:=counter[1]+(10*s-2); counter[2]:=counter[2]+10; counter[3]:=counter[3]+(6*s+9); 
+	return phi_X,phi_Z,phi_A,phi_C,phi_XP,phi_ZP,counter;  // Total : (10s-2)M+10S+(6s+9)a+(2 sth-power)
+
+
+end function;
+
+
+
+
+//Public parameters//
+
+//p = 2^258*l1*・・・*ln-1//
+
+
+PrimeList:= [ 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 307 ];
+
+
+p:=2^258;
+r:=258;
+
+for l:=1 to #PrimeList do
+
+	p:=p*PrimeList[l];
+
+end for;
+
+p:=p-1;
+
+Fp:=GF(p);
+
+  
+//E0:y^2=x^3+x//
+A:=0; C:=1;
+
+A24:=2;
+C24:=4;
+
+
+//Generating the distinguished point//
+
+
+
+Generating_distinguished_point:=function(A,C,counter)
+
+	A24:=A+2*C;
+	C24:=4*C;
+	counter[3]:=counter[3]+4; 
+
+	i:=1;
+	XXX:=0;
+	while XXX eq 0 do
+		i:=i+1;
+		P1:=Fp!(-i);
+	        R:=P1^3*C^2+P1^2*A*C+P1*C^2;
+		counter[1]:=counter[1]+5; counter[2]:=counter[2]+4; counter[3]:=counter[3]+4;
+	        XXXX:=JacobiSymbol(Integers()!R,p);
+	        if XXXX eq 1 then
+	             XXX:=1;
+	        end if;
+	end while;
+
+	P2:=Fp!1;
+	for l:=1 to #PrimeList do
+	     P1,P2,counter:=Montgomery_ladder(P1,P2,PrimeList[l],A24,C24,counter);
+	end for;
+
+	return P1,P2,counter;
+
+end function;
+
+//Generating the point P_0//
+
+P0X,P0Z,counter:=Generating_distinguished_point(0,1,[0,0,0]);
+
+
+//Group actions
+
+
+
+//mm and nn are used for SIMBA
+
+Evaluating_the_class_group_action_Montgomery:=function(A,C,P0X,P0Z,IntegersList,PrimeList,mm,nn,counter)
+
+
+        loopcount1:=0;
+        loopcount2:=0;
+
+        kList:=[];
+        for i:=1 to #PrimeList do
+             kList[i]:=0;
+        end for;
+
+        SIMBA:=[];
+        for i:=1 to mm do
+             SIMBA:=Append(SIMBA,kList);
+        end for;
+
+
+        SIMBA2:=kList;
+        zeroList:=kList;
+
+        P:=p+1;
+
+        for i:=1 to #PrimeList do
+                j:=i mod mm;
+                if j eq 0 then
+                        j:=mm;
+                end if;
+                SIMBA[j][i]:=IntegersList[i];
+        end for;
+	//SIMBA1
+
+        for mu:=1 to nn do
+                for nu:=1 to mm do
+
+                if SIMBA[nu] ne zeroList then
+			S:=[];
+
+			while (S eq []) do
+                                loopcount1:=loopcount1+1;
+
+
+				X:=Random(Fp); Z:=1;
+
+                                symb:=C*X;
+                                AX:=X^2;
+                                CX:=AX*X;
+                                AX:=A*AX;
+                                CX:=C*CX;
+                                symb:=symb+AX;
+                                symb:=symb+CX;
+                                counter[1]:=counter[1]+4; counter[2]:=counter[2]+1; counter[3]:=counter[3]+2; 
+
+				s:=JacobiSymbol(Integers()!symb,p);
+
+
+				if (s eq 1) then
+
+					//e_i>0
+					S:=[t : t in [1..#SIMBA[nu]] | SIMBA[nu][t] gt 0];
+
+				elif (s eq -1) then
+
+					//e_i<0
+					S:=[t : t in [1..#SIMBA[nu]] | SIMBA[nu][t] lt 0];
+
+				end if;
+
+			end while;
+
+
+
+
+                        k:=1;
+
+			for j in S do
+
+                                kList[j]:=k;
+				k:=k*PrimeList[j];
+                        end for;
+
+                        S:=Reverse(S);
+
+                        C2:=2*C;
+                        A24:=A+C2; C24:=2*C2;
+                        counter[3]:=counter[3]+3;
+			
+
+			QX,QZ,counter:=Montgomery_ladder_Z_1(X,Integers()!(P/k),A24,C24,counter);
+			
+
+			for l in S do
+
+				RX,RZ,counter:=Montgomery_ladder(QX,QZ,Integers()!(kList[l]),A24,C24,counter);
+
+				if (RX ne 0) and (RZ ne 0) then
+
+
+                                        loopcount2:=loopcount2+1;
+
+
+					//Computing ell-isogeny
+
+					d:=Integers()!((PrimeList[l]-1)/2);
+					KernelList,counter:=KernelPoints(RX,RZ,A24,C24,d,counter);
+					QX,QZ,A,C,P0X,P0Z,counter:=OddIsogeny_point_Montgomery(KernelList,QX,QZ,PrimeList[l],A,C2,P0X,P0Z,counter);
+                                        C2:=2*C; A24:=A+C2; C24:=2*C2;
+                                        counter[3]:=counter[3]+3;
+					//k:=k/PrimeList[l];
+
+					SIMBA[nu][l]:=SIMBA[nu][l]-s;
+
+				end if;
+
+			end for;
+
+
+                end if;
+                end for;
+        end for;
+
+
+
+        for i:=1 to #PrimeList do
+                j:=i mod mm;
+                if j eq 0 then
+                        j:=mm;
+                end if;
+                SIMBA2[i]:=SIMBA[j][i];
+        end for;
+	//SIMBA2
+
+
+	for i:=1 to #IntegersList do
+
+		while (SIMBA2[i] ne 0) do
+
+			S:=[];
+
+			while (S eq []) do
+                                loopcount1:=loopcount1+1;
+
+
+				X:=Random(Fp); Z:=1;
+
+                                symb:=C*X;
+                                AX:=X^2;
+                                CX:=AX*X;
+                                AX:=A*AX;
+                                CX:=C*CX;
+                                symb:=symb+AX;
+                                symb:=symb+CX;
+                                counter[1]:=counter[1]+4; counter[2]:=counter[2]+1; counter[3]:=counter[3]+2; 
+
+
+				s:=JacobiSymbol(Integers()!symb,p);
+
+
+				if (s eq 1) then
+
+					//e_i>0
+					S:=[t : t in [1..#SIMBA2] | SIMBA2[t] gt 0];
+
+				elif (s eq -1) then
+
+					//e_i<0
+					S:=[t : t in [1..#SIMBA2] | SIMBA2[t] lt 0];
+
+				end if;
+
+			end while;
+
+
+
+                        k:=1;
+
+			for j in S do
+
+                                kList[j]:=k;
+				k:=k*PrimeList[j];
+                        end for;
+
+                        S:=Reverse(S);
+
+                        C2:=2*C;
+                        A24:=A+C2; C24:=2*C2;
+                        counter[3]:=counter[3]+3;
+
+			QX,QZ,counter:=Montgomery_ladder_Z_1(X,Integers()!(P/k),A24,C24,counter);
+
+
+			for l in S do
+
+				RX,RZ,counter:=Montgomery_ladder(QX,QZ,Integers()!(kList[l]),A24,C24,counter);
+
+				//Computing ell-isogeny
+				if (RX ne 0) and (RZ ne 0) then
+
+                                        loopcount2:=loopcount2+1;
+
+					d:=Integers()!((PrimeList[l]-1)/2);
+					KernelList,counter:=KernelPoints(RX,RZ,A24,C24,d,counter);
+					QX,QZ,A,C,P0X,P0Z,counter:=OddIsogeny_point_Montgomery(KernelList,QX,QZ,PrimeList[l],A,C2,P0X,P0Z,counter);
+                                        C2:=2*C; A24:=A+C2; C24:=2*C2;
+                                        counter[3]:=counter[3]+3;
+					//k:=k/PrimeList[l];
+
+
+					SIMBA2[l]:=SIMBA2[l]-s;
+
+				end if;
+
+			end for;
+
+		end while;
+
+	end for;
+
+
+
+
+	return A,C,P0X,P0Z,counter,loopcount1,loopcount2;
+
+
+end function;
+
+
+
+
+CSiGamal258_test:=function()
+
+rr:=258;
+n:=#PrimeList;
+m:=32;//Security parameter
+
+Alice_IntegersList:=[];
+for i:=1 to n do
+     Alice_IntegersList[i]:=Random([-m..m]);
+end for;
+
+AliceA:=Random([0,1]);
+for i:=1 to rr-2 do
+     k:=Random([0,1]);
+     AliceA:=AliceA*2+k;
+end for;
+AliceA:=AliceA*2+1;
+
+
+counter_kgen:=[0,0,0];
+
+Alice_A,Alice_C,AlicePX,AlicePZ,counter_kgen,count1_2,count2_2:=Evaluating_the_class_group_action_Montgomery(A,C,P0X,P0Z,Alice_IntegersList,PrimeList,1,0,counter_kgen);
+AlicePX,AlicePZ,counter_kgen:=Montgomery_ladder(AlicePX,AlicePZ,AliceA,Alice_A+Alice_C*2,Alice_C*4,counter_kgen);
+
+
+cost_kgen:=Round(counter_kgen[1]+0.8*counter_kgen[2] + 0.05*counter_kgen[3]);
+
+Bob_IntegersList:=[];
+for i:=1 to n do
+     Bob_IntegersList[i]:=Random([-m..m]);
+end for;
+
+BobA:=Random([0,1]);
+for i:=1 to rr-2 do
+     k:=Random([0,1]);
+     BobA:=BobA*2+k;
+end for;
+BobA:=BobA*2+1;
+
+
+aP:=0;
+for i:=1 to rr-2 do
+     k:=Random([0,1]);
+     aP:=aP*2+k;
+end for;
+aP:=aP*2+1;
+//aP is a plaintext.
+
+
+// we initialize the counter for the encryption//
+
+counter_enc:=[0,0,0];
+
+Bob_A,Bob_C,PX,PZ,counter_enc,count1,count2:=Evaluating_the_class_group_action_Montgomery(A,C,P0X,P0Z,Bob_IntegersList,PrimeList,1,0,counter_enc);
+PX,PZ,counter_enc:=Montgomery_ladder(PX,PZ,BobA,Bob_A+Bob_C*2,Bob_C*4,counter_enc);
+
+
+Bob_A2,Bob_C2,PX2,PZ2,counter_enc,count1,count2:=Evaluating_the_class_group_action_Montgomery(Alice_A,Alice_C,AlicePX,AlicePZ,Bob_IntegersList,PrimeList,1,0,counter_enc);
+PX2,PZ2,counter_enc:=Montgomery_ladder(PX2,PZ2,BobA,Bob_A2+Bob_C2*2,Bob_C2*4,counter_enc);
+
+
+
+//Bob generates canonical point//
+
+P1,P2,counter_enc:=Generating_distinguished_point(Bob_A2,Bob_C2,counter_enc);
+
+
+//
+
+P1,P2,counter_enc:=Montgomery_ladder(P1,P2,aP,Bob_A2+Bob_C2*2,Bob_C2*4,counter_enc);
+
+mm,counter_enc:=Pohlig_Hellman(rr,P1,P2,PX2,PZ2,Bob_A2,Bob_C2,counter_enc);
+
+PX,PZ,counter_enc:=Montgomery_ladder(PX,PZ,mm,Bob_A+Bob_C*2,Bob_C*4,counter_enc);
+
+
+cost_enc:=Round(counter_enc[1]+0.8*counter_enc[2] + 0.05*counter_enc[3]);
+
+counter_dec:=[0,0,0];
+
+
+Alice_A2,Alice_C2,Alice_PX2,Alice_PZ2,counter_dec,count1,count2:=Evaluating_the_class_group_action_Montgomery(Bob_A,Bob_C,PX,PZ,Alice_IntegersList,PrimeList,1,0,counter_dec);
+Alice_PX2,Alice_PZ2,counter_dec:=Montgomery_ladder(Alice_PX2,Alice_PZ2,AliceA,Alice_A2+Alice_C2*2,Alice_C2*4,counter_dec);
+
+
+//Alice generates canonical point//
+
+P1,P2,counter_dec:=Generating_distinguished_point(Alice_A2,Alice_C2,counter_dec);
+
+
+mm,counter_dec:=Pohlig_Hellman(rr,Alice_PX2,Alice_PZ2,P1,P2,Alice_A2,Alice_C2,counter_dec);
+
+
+cost_dec:= Round(counter_dec[1]+0.8*counter_dec[2] + 0.05*counter_dec[3]);
+
+if (mm eq aP) or (2^rr-mm eq aP) then
+     //"true";
+     return cost_kgen, cost_enc, cost_dec;
+else
+     "false";
+      return 0;
+end if;
+end function;
+
+CSiGamal258_test()
