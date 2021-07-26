@@ -628,7 +628,7 @@ end function;
 
 
 
-SIPE258_test:=function()
+SimS258_test:=function()
 
 rr:=258;
 n:=#PrimeList;
@@ -727,4 +727,4 @@ end if;
 end function;
 
 
-SIPE258_test()
+SimS258_test()
