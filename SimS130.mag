@@ -632,7 +632,7 @@ end function;
 
 
 
-SIPE130_test:=function()
+SimS130_test:=function()
 
 rr:=130;
 n:=#PrimeList;
@@ -708,7 +708,6 @@ counter_dec:=[0,0,0];
 Alice_A2,Alice_C2,counter_dec,count1,count2:=Evaluating_the_class_group_action_Montgomery(Bob_A,Bob_C,Alice_IntegersList,PrimeList,1,0,counter_dec);
 
 
-
 //Alice generates canonical point//
 
 P1,P2,counter_dec:=Generating_distinguished_point(Alice_A2,Alice_C2,counter_dec);
@@ -733,4 +732,4 @@ end if;
 end function;
 
 
-SIPE130_test()
+SimS130_test()
