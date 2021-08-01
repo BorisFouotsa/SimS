@@ -691,12 +691,19 @@ Bob_A2,Bob_C2,counter_enc,count1_2,count2_2:=Evaluating_the_class_group_action_M
 P1,P2,counter_enc:=Generating_distinguished_point(Bob_A2,Bob_C2,counter_enc);
 
 
-//Bob computes [2m+1]P_{E_4}//
+//Bob computes P_4=[2m+1]P_{E_4}//
 
 P11,P22,counter_enc:=Montgomery_ladder(P1,P2,plaintext,Bob_A2+Bob_C2*2,Bob_C2*4,counter_enc);
 
+// Compute the Montgonery coefficient of the shared curve and apply the randomizing function// 
 
-//total cost of encryption//
+Bob_mont2 :=Bob_A2/Bob_C2; 
+xP4 := P11/P22;
+randomized_xP4 := BitwiseXor(IntegerRing()!(Bob_mont2), IntegerRing()!(xP4));
+
+// the ciphertext is (Bob_mont, randomized_xP4)  where Bob_mont = Bob_A/Bob_C is the Montgomery coefficient of [b]E_0// 
+
+//total cost of encryption//   // This will need to be updated, we need to add the two inversions above.//
 cost_enc:=counter_enc[1]+0.8*counter_enc[2] + 0.05*counter_enc[3];
 
 //starting the decryption//
@@ -712,12 +719,24 @@ Alice_A2,Alice_C2,counter_dec,count1,count2:=Evaluating_the_class_group_action_M
 
 P1,P2,counter_dec:=Generating_distinguished_point(Alice_A2,Alice_C2,counter_dec);
 
-	
+// derandomize randomized_xP4// 
+// This costs one inversion which is not taken into account in the operation count since this step was added 
+// after the numbers in the paper where made public. We will find a good estimate to express inversion in terms of multiplication in the 
+// considered fields in order update the numbers in the online version of the paper (https://eprint.iacr.org/2021/218). Hence in total one needs to add 
+// 3 inversions (2 during encryption and one during decryption).
+
+Alice_mont2 := Alice_A2/Alice_C2;
+xP4 := BitwiseXor(IntegerRing()!(Alice_mont2), IntegerRing()!(randomized_xP4)); 
+
+P11 := Fp!(xP4);
+P22 := Fp!(1);
+
 //Alice solves the discrete log//
 
 mm,counter_dec:=Pohlig_Hellman(rr,P11,P22,P1,P2,Alice_A2,Alice_C2,counter_dec);
 
 
+//total cost of decryption//   // This will need to be updated, we need to add the one inversions in the derandomization.//
 cost_dec:=counter_dec[1]+0.8*counter_dec[2] + 0.05*counter_dec[3];
 
 
