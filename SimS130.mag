@@ -741,11 +741,11 @@ cost_dec:=counter_dec[1]+0.8*counter_dec[2] + 0.05*counter_dec[3];
 
 
 if (mm eq plaintext) or (2^rr-mm eq plaintext) then
-     "true,";
-      return Round(cost_kgen), Round(cost_enc), Round(cost_dec);
+     "Successful,";
+      return "KGen. cost:", Round(cost_kgen), "      Enc. cost:", Round(cost_enc),"       Dec. cost:", Round(cost_dec);
 
 else
-     "false";
+     "Unsuccessful";
       return 0;
 end if;
 end function;
