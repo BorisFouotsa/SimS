@@ -723,12 +723,7 @@ Alice_A2,Alice_C2,counter_dec,count1,count2:=Evaluating_the_class_group_action_M
 
 P1,P2,counter_dec:=Generating_distinguished_point(Alice_A2,Alice_C2,counter_dec);
 
-// derandomize randomized_xP4// 
-// This costs one inversion which is not taken into account in the operation count since this step was added 
-// after the numbers in the paper where made public. We will find a good estimate to express inversion in terms of multiplication in the 
-// considered fields in order update the numbers in the online version of the paper (https://eprint.iacr.org/2021/218). Hence in total one needs to add 
-// 3 inversions (2 during encryption and one during decryption).
-
+// derandomize randomized_xP4//
 
 Alice_mont2 := ppower(Alice_C2, p-2, counter_dec);        // computing the inverse of Alice_C2
 Alice_mont2 := Alice_A2*Alice_mont2;           counter_dec[1] := counter_dec[1] + 1;
@@ -743,7 +738,7 @@ P22 := Fp!(1);
 mm,counter_dec:=Pohlig_Hellman(rr,P11,P22,P1,P2,Alice_A2,Alice_C2,counter_dec);
 
 
-//total cost of decryption//   // This will need to be updated, we need to add the one inversions in the derandomization.//
+//total cost of decryption//  
 cost_dec:=counter_dec[1]+0.8*counter_dec[2] + 0.05*counter_dec[3];
 
 
