@@ -646,7 +646,7 @@ for i:=1 to n do
      Alice_IntegersList[i]:=Random([-m..m]);
 end for;
 
-// we initialize the counter for the encryption//
+// we initialize the counter for the key generation//
 
 counter_kgen:=[0,0,0];
 
@@ -695,15 +695,19 @@ P1,P2,counter_enc:=Generating_distinguished_point(Bob_A2,Bob_C2,counter_enc);
 
 P11,P22,counter_enc:=Montgomery_ladder(P1,P2,plaintext,Bob_A2+Bob_C2*2,Bob_C2*4,counter_enc);
 
-// Compute the Montgonery coefficient of the shared curve and apply the randomizing function// 
+// Compute the Montgonery coefficient (Bob_A2/Bob_C2) of the shared curve and apply the randomizing function on x(P4) = P11/P22// 
 
-Bob_mont2 :=Bob_A2/Bob_C2; 
-xP4 := P11/P22;
+Bob_mont2 := ppower(Bob_C2, p-2, counter_enc);        // computing the inverse of Bob_C2
+Bob_mont2 := Bob_A2*Bob_mont2;           counter_enc[1] := counter_enc[1] + 1;
+
+xP4 := ppower(P22, p-2, counter_enc);        // computing the inverse of P22
+xP4 := P11*xP4;           counter_enc[1] := counter_enc[1] + 1;
+
 randomized_xP4 := BitwiseXor(IntegerRing()!(Bob_mont2), IntegerRing()!(xP4));
 
 // the ciphertext is (Bob_mont, randomized_xP4)  where Bob_mont = Bob_A/Bob_C is the Montgomery coefficient of [b]E_0// 
 
-//total cost of encryption//   // This will need to be updated, we need to add the two inversions above.//
+//total cost of encryption//  
 cost_enc:=counter_enc[1]+0.8*counter_enc[2] + 0.05*counter_enc[3];
 
 //starting the decryption//
@@ -725,7 +729,10 @@ P1,P2,counter_dec:=Generating_distinguished_point(Alice_A2,Alice_C2,counter_dec)
 // considered fields in order update the numbers in the online version of the paper (https://eprint.iacr.org/2021/218). Hence in total one needs to add 
 // 3 inversions (2 during encryption and one during decryption).
 
-Alice_mont2 := Alice_A2/Alice_C2;
+
+Alice_mont2 := ppower(Alice_C2, p-2, counter_dec);        // computing the inverse of Alice_C2
+Alice_mont2 := Alice_A2*Alice_mont2;           counter_dec[1] := counter_dec[1] + 1;
+
 xP4 := BitwiseXor(IntegerRing()!(Alice_mont2), IntegerRing()!(randomized_xP4)); 
 
 P11 := Fp!(xP4);
