@@ -743,7 +743,7 @@ cost_dec:=counter_dec[1]+0.8*counter_dec[2] + 0.05*counter_dec[3];
 
 
 if (mm eq plaintext) or (2^rr-mm eq plaintext) then
-     "Successful,";
+     "Successful, we have the following costs in terms of field multiplications in Fp";
       return "KGen. cost:", Round(cost_kgen), "      Enc. cost:", Round(cost_enc),"       Dec. cost:", Round(cost_dec);
 
 else
